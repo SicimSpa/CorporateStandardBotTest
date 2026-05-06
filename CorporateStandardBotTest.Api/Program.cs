@@ -9,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
 
+builder.ConfigureObservability();
+
 builder.Services.AddAzureSearchKnowledgeBase(builder.Configuration);
 builder.Services.AddBusinessLogic();
 

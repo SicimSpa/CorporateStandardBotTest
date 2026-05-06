@@ -1,3 +1,3 @@
 ﻿namespace CorporateStandardBotTest.BusinessLogic.Models;
 
-public record AiChat(ICollection<AiChatMessage> Messages);
+public record AiChat(Guid ThreadId, ICollection<AiChatMessage> Messages);

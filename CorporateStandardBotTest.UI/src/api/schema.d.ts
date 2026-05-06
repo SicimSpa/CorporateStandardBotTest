@@ -57,9 +57,13 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AiChat: {
+            /** Format: uuid */
+            threadId: string;
             messages: components["schemas"]["AiChatMessage"][];
         };
         AiChatMessage: {
+            /** Format: uuid */
+            messageId: string;
             role: components["schemas"]["AiMessageRole"];
             content: string;
             references?: null | components["schemas"]["AiChatReference"][];

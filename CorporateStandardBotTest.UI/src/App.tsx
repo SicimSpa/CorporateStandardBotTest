@@ -44,6 +44,7 @@ function UserMessage({ message }: { message: string }) {
 
 function AuthenticatedApp() {
   const $api = useApiClient()
+  const [threadId, setThreadId] = useState<string>(() => crypto.randomUUID())
   const [messages, setMessages] = useState<AiChatMessage[]>([])
   const [prompt, setPrompt] = useState("")
   const [submitError, setSubmitError] = useState<{ prompt: string | null, error: string } | null>(null)
@@ -75,7 +76,7 @@ function AuthenticatedApp() {
       return
     }
 
-    const nextMessages = [...messages, { role: USER_ROLE, content } as const]
+    const nextMessages = [...messages, { messageId: crypto.randomUUID(), role: USER_ROLE, content } as const]
 
     pendingPromptRef.current = content
     setSubmitError(null)
@@ -83,7 +84,7 @@ function AuthenticatedApp() {
     setPrompt("")
 
     mutation.mutate(
-      { body: { chat: { messages: nextMessages }, reasoningEffort: reasoning } },
+      { body: { chat: { threadId, messages: nextMessages }, reasoningEffort: reasoning } },
       {
         onSuccess: (assistantMessage) => {
           pendingPromptRef.current = null
@@ -105,6 +106,7 @@ function AuthenticatedApp() {
   }
 
   const resetChat = () => {
+    setThreadId(crypto.randomUUID())
     setMessages([])
     setPrompt("")
     setSubmitError(null)
