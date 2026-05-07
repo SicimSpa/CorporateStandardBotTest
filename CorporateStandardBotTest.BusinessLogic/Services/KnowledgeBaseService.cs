@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Azure.Search.Documents.KnowledgeBases;
 using Azure.Search.Documents.KnowledgeBases.Models;
 using CorporateStandardBotTest.BusinessLogic.Models;
@@ -14,7 +15,7 @@ public interface IKnowledgeBaseService
     Task<Result<AiChatMessage>> GetResponseAsync(AiCompletionRequest chat, string? userEmail);
 }
 
-public class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, KnowledgeBaseRetrievalClient kbClient)
+public partial class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, KnowledgeBaseRetrievalClient kbClient)
     : IKnowledgeBaseService
 {
     public async Task<Result<AiChatMessage>> GetResponseAsync(AiCompletionRequest request, string? userEmail)
@@ -159,8 +160,13 @@ public class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, Knowledg
                         totalOutputTokens, totalOutputAndReasoningTokes);
 
                     var text = (response.Value.Response[0].Content[0] as KnowledgeBaseMessageTextContent)!.Text;
+
+                    var refsRegex = KnowledgeBaseRefRegex();
+                    var refsInText = refsRegex.Matches(text).Select(x => x.Groups[1].Value).ToHashSet();
+                    
                     var references = response.Value.References
                         .OfType<KnowledgeBaseAzureBlobReference>()
+                        .Where(x => refsInText.Contains(x.Id))
                         .Select(x => new AiChatReference(x.Id, x.BlobUrl, GetFileName(x.BlobUrl)))
                         .ToList();
 
@@ -192,4 +198,7 @@ public class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, Knowledg
         var name = index == -1 ? filePath : filePath[(index + 1)..];
         return name;
     }
+
+    [GeneratedRegex(@"\[ref_id:(\d+)\]")]
+    private static partial Regex KnowledgeBaseRefRegex();
 }
