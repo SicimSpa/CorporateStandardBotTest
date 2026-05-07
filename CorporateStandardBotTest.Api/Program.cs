@@ -3,6 +3,7 @@ using CorporateStandardBotTest.BusinessLogic.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using CorporateStandardBotTest.Api.Extensions;
+using CorporateStandardBotTest.BusinessLogic.Settings;
 using MinimalHelpers.Routing;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
 
 builder.ConfigureObservability();
+
+builder.Services.Configure<KnowledgeBaseUrlSettings>(builder.Configuration.GetSection(KnowledgeBaseUrlSettings.Position));
 
 builder.Services.AddAzureSearchKnowledgeBase(builder.Configuration);
 builder.Services.AddBusinessLogic();

@@ -73,7 +73,7 @@ export function ChatMessage({ message }: { message: AiChatMessage }) {
             <div className="flex flex-wrap gap-2">
               {references.map((reference) => (
                 <Badge key={reference.id} className="text-sm max-w-full min-w-0 whitespace-normal" variant="outline" render={
-                  <a href={reference.url}>
+                  <a href={reference.url} target="_blank">
                     <span className="min-w-0 truncate">
                       {reference.name}
                     </span>

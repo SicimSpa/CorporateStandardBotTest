@@ -15,7 +15,7 @@ public interface IKnowledgeBaseService
     Task<Result<AiChatMessage>> GetResponseAsync(AiCompletionRequest chat, string? userEmail);
 }
 
-public partial class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, KnowledgeBaseRetrievalClient kbClient)
+public partial class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, IKnowledgeBaseUrlService knowledgeBaseUrlService, KnowledgeBaseRetrievalClient kbClient)
     : IKnowledgeBaseService
 {
     public async Task<Result<AiChatMessage>> GetResponseAsync(AiCompletionRequest request, string? userEmail)
@@ -63,6 +63,14 @@ public partial class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, 
                     [new KnowledgeBaseMessageTextContent(message.Content)]) { Role = role });
             }
         }
+        
+        var threadId = request.Chat.ThreadId;
+        var messageId = chat.Messages.LastOrDefault(x => x.Role == AiMessageRole.User)?.MessageId;
+
+        Activity.Current?
+            .AddTag("knowledgeBase.getResponse.userEmail", userEmail)
+            .AddTag("knowledgeBase.getResponse.threadId", threadId)
+            .AddTag("knowledgeBase.getResponse.messageId", messageId);
 
         var result = await ResultAsync.TryAsync(async () => await kbClient.RetrieveAsync(retrievalRequest));
 
@@ -120,13 +128,7 @@ public partial class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, 
                     var totalAzureSearchDuration = queryPlanningDuration + retrievalDuration +
                                                    agenticReasoningDuration + answerSynthesisDuration;
 
-                    var threadId = request.Chat.ThreadId;
-                    var messageId = chat.Messages.LastOrDefault(x => x.Role == AiMessageRole.User)?.MessageId;
-
                     Activity.Current?
-                        .AddTag("knowledgeBase.getResponse.userEmail", userEmail)
-                        .AddTag("knowledgeBase.getResponse.threadId", threadId)
-                        .AddTag("knowledgeBase.getResponse.messageId", messageId)
                         .AddTag("knowledgeBase.getResponse.queryPlanningDuration", queryPlanningDuration)
                         .AddTag("knowledgeBase.getResponse.queryPlanningInputTokens", queryPlanningInputTokens)
                         .AddTag("knowledgeBase.getResponse.queryPlanningOutputTokens", queryPlanningOutputTokens)
@@ -167,13 +169,19 @@ public partial class KnowledgeBaseService(ILogger<KnowledgeBaseService> logger, 
                     var references = response.Value.References
                         .OfType<KnowledgeBaseAzureBlobReference>()
                         .Where(x => refsInText.Contains(x.Id))
-                        .Select(x => new AiChatReference(x.Id, x.BlobUrl, GetFileName(x.BlobUrl)))
+                        .Select(x => new AiChatReference(x.Id, knowledgeBaseUrlService.GetSignedUrl(x.BlobUrl), GetFileName(x.BlobUrl)))
                         .ToList();
 
                     return Result.Success(new AiChatMessage(Guid.NewGuid(), AiMessageRole.Assistant, text, references));
                 },
-                error: _ => Result<AiChatMessage>.Error("Unable to generate a response")
-            );
+                error: ex =>
+                {
+                    Activity.Current?
+                        .AddException(ex)
+                        .SetStatus(ActivityStatusCode.Error);
+
+                    return Result<AiChatMessage>.Error("Unable to generate a response");
+                });
 
         return returnValue;
     }
